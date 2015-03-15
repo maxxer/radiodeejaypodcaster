@@ -4,7 +4,7 @@ CREATE TABLE `programma` (
   `nome` varchar(250) NOT NULL,
   `url_immagine` varchar(255) NOT NULL
 ) ;
-
+CREATE UNIQUE INDEX idxpslug ON programma(slug);
 
 CREATE TABLE `episodio` (
   `id` INTEGER PRIMARY KEY,

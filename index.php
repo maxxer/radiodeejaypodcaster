@@ -1,204 +1,171 @@
-<?php
-/**
- * Radio Deejay RELOADED podcaster
- * @author Lorenzo Milesi <lorenzo@mile.si>
- * @copyright 2015 Lorenzo Milesi 
- * @license GNU GPL v3
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+<!DOCTYPE html>
+<html lang="it">
 
-require_once("simple_html_dom.php");
-date_default_timezone_set("Europe/Rome");
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Radio Deejay podcaster per i programmi in reloaded">
+    <meta name="author" content="Lorenzo 'maxxer' Milesi">
 
-$a = new RDJReloaded();
-//$a->scanList();
-//$a->aggiornaPodcast("50-songs");
-$a->generaXmlProgramma("50-songs");
+    <title>Radio Deejay /reloaded/ podcaster</title>
 
-class RDJReloaded {
-    private $baseUrl = "http://www.deejay.it/reloaded/radio/";
-    private $baseUrlArchivio = "http://www.deejay.it/audio/?reloaded=";
-    private $nextPageClass = "nextpostslink";
-    
-    private $conn;
-   
-    /**
-     * Scansiona la homepage di Deejay Reloaded e crea la lista dei programmi disponibili, raccogliendo
-     * titolo, nome, URL immagine e lo slug.
-     * Inserisce i risultati nella tabella `programma`.
-     * Si chiama ricorsivamente per la paginazione.
-     * @param string $url Path della prima pagina
-     * @return null
-     */
-    public function scanList ($url = NULL)
-    {
-        if (is_null($url))
-            $url = $this->baseUrl;
-        $reloaded_home = file_get_html($url);
-        
-        $db = $this->getDbConnection();
-        $qryProgr = $db->prepare("REPLACE INTO `programma` (slug, nome, url_immagine) "
-                . "VALUES (:slug, :nome, :urlImg)");
-        foreach ($reloaded_home->find('ul[class="block-grid"]',0)->find("li") as $programma) {
-            $imgEl = $programma->find("img",0);
-            $img = $imgEl->src;
-            $nome = $imgEl->alt;
-            $slug = self::createSlug($nome);
-            $qryProgr->execute([
-                ':slug' => $slug, 
-                ':nome' => $nome, 
-                ':urlImg' => $img, 
-            ]);
-        }
-        
-        // Cerco se c'è una pagina successiva
-        $next = $reloaded_home->find('a[class="'.$this->nextPageClass.'"]', 0);
-        if (!is_null($next)) {
-            return $this->scanList($next->href);
-        } 
-        return;
-    }
-    
-    /**
-     * Aggiorna gli episodi di uno o più programmi 
-     * @param string $programma SLUG del programma, % per tutti.
-     */
-    public function aggiornaPodcast ($programma = '%') {
-        $db = $this->getDbConnection();
-        $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'");
-        
-        foreach ($qrPodcast as $riga) {
-            echo "Elaborazione programma '{$riga['slug']}' \n";
-            $urlArchivio = $this->baseUrlArchivio.$riga['slug'];
-            echo "Apertura pagina archivio '$urlArchivio' \n";
-            $pagArchivio = file_get_html($urlArchivio);
-            
-            foreach ($pagArchivio->find('ul[class="lista"]',0)->find("li a[1]") as $link) {
-//                $link = $episodio->find("a",0);
-                echo "Rilevato episodio '{$link->title}' con url '{$link->href}' \n";
-                $titolo = $link->title;
-                $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
-                    . "`id_programma` = '{$riga['id']}' AND `href` = '{$link->href}' ")->fetch());
-                if ($qrFind > 0) {
-                    // Se ho già questo titolo tutto il mio programma è aggiornato
-                    echo "Episodio già presente, programma aggiornato";
-                    break 2;
-                }
-                $this->leggiProgramma($titolo, $riga['id'], $link->href);
-            }
-        }
-    }
-    
-    /**
-     * Scansione pagina del programma alla ricerca degli episodi, e popolazione della tabella `episodi`
-     * @param string $titolo Titolo dell'episodio
-     * @param integer $id_programma id del programma nella tabella 
-     * @param string $url URL dell'episodio
-     */
-    private function leggiProgramma ($titolo, $id_programma, $url) {
-        echo "Lettura url '$url' per programma $id_programma \n";
-        $db = $this->getDbConnection();
-        $qAddPodcast = $db->prepare("INSERT INTO `episodio` "
-                . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
-                . "VALUES ('$id_programma', '$titolo', :file, '$url', datetime())");
-        $doc = file_get_html($url);
-        $iframe = $doc->find("iframe",0)->src;
-        $iframe_query = parse_url($iframe, PHP_URL_QUERY);
-        // rimuovere la prima parte 
-        foreach (explode("&", $iframe_query) as $p) {
-            $kv = explode("=", $p);
-            $val [$kv[0]] = $kv[1];
-        }
-        // A questo punto ho le chiavi 'file' e 'image'
-        $qAddPodcast->execute([':file' => $val['file']]);        
-    }
-    
-    /**
-     * Genera l'XML del podcast e lo emette su stdout
-     * @param string $prog SLUG programma
-     */
-    public function generaXmlProgramma($prog) {
-        $db = $this->getDbConnection();
-        $programma = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$prog'")->fetch();
-        if (empty($programma))
-            return;
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <!-- Custom CSS -->
+    <link href="css/grayscale.css" rel="stylesheet">
+    <!-- Custom Fonts -->
+    <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href="http://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+    <link href="http://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
 
-        $xml = new DOMDocument();
-        $root = $xml->appendChild($xml->createElement('rss'));
-        $root->setAttribute('xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd');
-        $root->setAttribute('xmlns:media', 'http://search.yahoo.com/mrss/');
-        $root->setAttribute('xmlns:feedburner', 'http://rssnamespace.org/feedburner/ext/1.0');
-        $root->setAttribute('version', '2.0');
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
 
-        $chan = $root->appendChild($xml->createElement('channel'));
-        $chan->appendChild($xml->createElement('title', $programma['nome']));
-        $chan->appendChild($xml->createElement('link', $this->baseUrlArchivio.$programma['slug']));
-        $chan->appendChild($xml->createElement('generator', 'deejayreloadedpodcast.maxxer.it'));
-        $chan->appendChild($xml->createElement('language', 'it'));
-        $chan_img = $chan->appendChild($xml->createElement('itunes:image'));
-        $chan_img->setAttribute('href', $programma['url_immagine']);
-        
-        // Query elenco episodi
-        $q_episodi = "SELECT * FROM `episodio` WHERE `id_programma` = '{$programma['id']}' LIMIT 10 ";
+</head>
 
-        foreach ($db->query($q_episodi)->fetchAll() as $episodio) {
-            $item = $chan->appendChild($xml->createElement('item'));
-            $item->appendChild($xml->createElement('title', $episodio['titolo']));
-            $item->appendChild($xml->createElement('link', $episodio['href']));
-            $item->appendChild($xml->createElement('itunes:author', $programma['nome']));
-            $item->appendChild($xml->createElement('itunes:summary', $episodio['titolo']));
-            $item->appendChild($xml->createElement('guid', $episodio['url_file']));
+<body id="page-top" data-spy="scroll" data-target=".navbar-fixed-top">
 
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $enclosure = $item->appendChild($xml->createElement('enclosure'));
-            $enclosure->setAttribute('url', $episodio['url_file']);
-//            $enclosure->setAttribute('length', filesize($episode['audio_file']));
-//            $enclosure->setAttribute('type', finfo_file($finfo, $episode['audio_file']));
+    <!-- Navigation -->
+    <nav class="navbar navbar-custom navbar-fixed-top" role="navigation">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-main-collapse">
+                    <i class="fa fa-bars"></i>
+                </button>
+                <a class="navbar-brand page-scroll" href="#page-top">
+                    <i class="fa fa-play-circle"></i> Radio Deejay  <span class="light">podcaster</span>
+                </a>
+            </div>
 
-            $item->appendChild($xml->createElement('pubDate', date('D, d M Y H:i:s O', $episodio['data_inserimento'])));
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse navbar-right navbar-main-collapse">
+                <ul class="nav navbar-nav">
+                    <!-- Hidden li included to remove active class from about link when scrolled up past about section -->
+                    <li class="hidden">
+                        <a href="#page-top"></a>
+                    </li>
+                    <li>
+                        <a class="page-scroll" href="#perche">Perch&eacute;</a>
+                    </li>
+                    <li>
+                        <a class="page-scroll" href="#programmi">Programmi</a>
+                    </li>
+                    <li>
+                        <a class="page-scroll" href="#crediti">Crediti</a>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
 
-        //    $getID3 = new getID3();
-        //    $fileinfo = $getID3->analyze($episode['audio_file']);
-        //    $item->appendChild($xml->createElement('itunes:duration', $fileinfo['playtime_string']));
-        }
+    <!-- Intro Header -->
+    <header class="intro">
+        <div class="intro-body">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-8 col-md-offset-2">
+                        <h1 class="brand-heading">Reloaded Podcaster</h1>
+                        <p class="intro-text"><strong>unofficial</strong> podcast per tutti i programmi di Radio Deejay in <em>reloaded</em>.</p>
+                        <a href="http://www.deejay.it" target="_blank"><img src="img/radiodeejay_logo.png" alt="Radio Deejay" /></a> <br />
+                        <a href="#perche" class="btn btn-circle page-scroll">
+                            <i class="fa fa-angle-double-down animated"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-        $xml->formatOutput = true;
-        print $xml->saveXML();
-    }
-    
-    /**
-     * Genera lo slug partendo dal nome del programma
-     * @param string $name
-     * @return string
-     */
-    public static function createSlug ($name) {
-        return strtolower(preg_replace("/\s/", "-", $name));
-    }
-    
-    /**
-     * Genera l'oggetto della connessione SQLite
-     * @return PDO
-     */
-    public function getDbConnection () {
-        if (empty($this->conn)) {
-            try {
-                $this->conn = new PDO("sqlite:radiodeejayreloaded.sqldb");
-            } catch (PDOException $e) {
-                die ("SQLite db missing: ".$e->getMessage());
-            }
-        }
-        return $this->conn;
-    }
-}
+    <!-- About Section -->
+    <section id="perche" class="container content-section text-center">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2">
+                <h2>Perch&egrave;</h2>
+                <p>Banalmente per avere in automatico tutte le puntate dei miei programmi preferiti sul telefono, e poterle ascoltare quando sono in giro senza doverle scaricare manualmente.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="programmi" class="content-section text-center">
+        <div class="download-section">
+            <div class="container">
+                <div class="col-lg-6 col-lg-offset-3">
+                    <h2>Elenco programmi</h2>
+                    <ul class="list-group">
+                        <?php 
+                        require_once 'rdjreloaded.php';
+                        $lib = new RDJReloaded();
+                        foreach ($lib->generaElencoProgrammi() as $p) : ?>
+                        <li class="list-group-item">
+                          <span class="badge"><a href="<?=$p['url_archivio']?>" title="Feed podcast"><?=$p['conteggio']?> <i class="fa fa-rss animated"></i></a></span>
+                          <a href="<a href="<?=$p['url_archivio']?>" title="Homepage reloaded"><i class="fa fa-home animated"></i></a>
+                          <?=$p['nome']?>
+                        </li>
+                        <?php endforeach; ?>
+
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="crediti" class="container content-section text-center">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2">
+                <h2>Crediti</h2>
+                <p>Tutti i programmi, i file audio, le immagini dei programmi e i relativi loghi sono di propriet&agrave; e &copy; di <a href="http://www.deejay.it" target="_blank">Radio Deejay</a>.</p>
+                <p>Gli script PHP per il reperimento delle pagine sono stati scritti da <a href="http://it.linkedin.com/in/maxxer" target="_blank" title="il mio profilo linkedin">me medesimo</a>.</p>
+                <p>Per il parsing dell'HTML delle pagine del sito ho usato la libreria <a href="http://simplehtmldom.sourceforge.net/" target="_blank">simple html dom</a>.<br />
+                Il bellissimo layout &egrave; invece di <a href="http://startbootstrap.com/template-overviews/grayscale/" target="_blank">David Miller</a>.<br />
+                L'immagine di sfondo in alto arriva da <a href='http://www.djjeffh.com/2013/04/house-trax-72-philly-nites-radio.html' target="_blank">DJ Jeff Howell</a>.
+                </p>
+                <p>Per commenti o richieste scrivete pure a <a href="mailto:lorenzo@mile.si">lorenzo@mile.si</a>. <br />
+                Se avete miglioramenti da proporre:</p>
+                <ul class="list-inline banner-social-buttons">
+                    <li>
+                        <a href="https://github.com/maxxer/radiodeejaypodcaster" class="btn btn-default btn-lg"><i class="fa fa-github fa-fw"></i> <span class="network-name">Github</span></a>
+                    </li>
+                </ul>
+                <p>Se vuoi sostenere questo sito (magari per pagare i costi di hosting) puppati un po' di annunci ed ogni tanto clicca...</p>
+                <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                <!-- podcaster -->
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-0712109511578838"
+                     data-ad-slot="2290262523"
+                     data-ad-format="auto"></ins>
+                <script>
+                (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container text-center">
+            <p>Copyright &copy; maxxer 2015</p>
+        </div>
+    </footer>
+
+    <!-- jQuery -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <!-- Bootstrap Core JavaScript -->
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <!-- Plugin JavaScript -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
+    <!-- Custom Theme JavaScript -->
+    <script src="js/grayscale.js"></script>
+
+</body>
+
+</html>
