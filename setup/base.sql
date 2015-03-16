@@ -6,6 +6,13 @@ CREATE TABLE `programma` (
 ) ;
 CREATE UNIQUE INDEX idxpslug ON programma(slug);
 
+CREATE TABLE `programma_visite` (
+  `id` INTEGER PRIMARY KEY,
+  `id_programma` INTEGER UNIQUE NOT NULL,
+  `visite` integer UNSIGNED DEFAULT "1",
+  FOREIGN KEY(id_programma) REFERENCES programma(id)
+) ;
+
 CREATE TABLE `episodio` (
   `id` INTEGER PRIMARY KEY,
   `id_programma` INTEGER,

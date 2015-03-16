@@ -129,6 +129,12 @@ class RDJReloaded {
         $programma = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$prog'")->fetch();
         if (empty($programma))
             return;
+        
+        // Contatore visite
+        $a = $db->exec("INSERT OR REPLACE INTO  `programma_visite` (`id_programma`, `visite`) "
+                . "VALUES ({$programma['id']}, "
+                    . "COALESCE((SELECT `visite`+1 FROM `programma_visite` "
+                        . "WHERE `id_programma` = '{$programma['id']}'), 1)) ");
 
         $xml = new DOMDocument();
         $root = $xml->appendChild($xml->createElement('rss'));
