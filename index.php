@@ -99,7 +99,7 @@
     <section id="perche" class="container content-section text-center">
         <div class="row">
             <div class="col-lg-8 col-lg-offset-2">
-                <h2>Perch&egrave;</h2>
+                <h2>Perch&eacute;</h2>
                 <p>Banalmente per avere in automatico tutte le puntate dei miei programmi preferiti sul telefono, e poterle ascoltare quando sono in giro senza doverle scaricare manualmente.</p>
             </div>
         </div>
