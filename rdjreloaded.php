@@ -80,15 +80,19 @@ class RDJReloaded {
             echo "Apertura pagina archivio '$urlArchivio' \n";
             $pagArchivio = file_get_html($urlArchivio);
             
-            foreach ($pagArchivio->find('ul[class="lista"]',0)->find("li a[1]") as $link) {
-//                $link = $episodio->find("a",0);
+            $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0)->find("li a[1]");
+            if (empty($elencoEpisodi)) {
+                echo "ATTENZIONE: nessun link trovato!\n";
+                return;
+            }
+            foreach ($elencoEpisodi as $link) {
                 echo "Rilevato episodio '{$link->title}' con url '{$link->href}' \n";
                 $titolo = $link->title;
                 $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
                     . "`id_programma` = '{$riga['id']}' AND `href` = '{$link->href}' ")->fetch());
                 if ($qrFind > 0) {
                     // Se ho già questo titolo tutto il mio programma è aggiornato
-                    echo "Episodio già presente, programma aggiornato";
+                    echo "Episodio già presente, programma aggiornato\n";
                     break 2;
                 }
                 $this->leggiProgramma($titolo, $riga['id'], $link->href);
