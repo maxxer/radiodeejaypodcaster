@@ -85,12 +85,12 @@ class RDJReloaded {
             echo "Apertura pagina archivio '$urlArchivio' \n";
             $pagArchivio = file_get_html($urlArchivio);
             
-            $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0)->find("li a[1]");
+            $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0);
             if (empty($elencoEpisodi)) {
                 echo "ATTENZIONE: nessun link trovato!\n";
-                return;
+                continue;
             }
-            foreach ($elencoEpisodi as $link) {
+            foreach ($elencoEpisodi->find("li a[1]") as $link) {
                 echo "Rilevato episodio '{$link->title}' con url '{$link->href}' \n";
                 $titolo = $link->title;
                 $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
