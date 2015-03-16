@@ -118,7 +118,7 @@
                         foreach ($lib->generaElencoProgrammi() as $p) : ?>
                         <li class="list-group-item">
                           <span class="badge"><a href="/podcast/<?=$p['slug']?>.xml" title="Feed podcast"><?=$p['conteggio']?> <i class="fa fa-rss animated"></i></a></span>
-                          <a href="<a href="<?=$p['url_archivio']?>" title="Homepage reloaded"><i class="fa fa-home animated"></i></a>
+                          <a href="<?=$p['url_archivio']?>" title="Homepage reloaded" target="_blank"><i class="fa fa-home animated"></i></a>
                           <?=$p['nome']?>
                         </li>
                         <?php endforeach; ?>
