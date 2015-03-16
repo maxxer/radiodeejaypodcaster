@@ -44,14 +44,19 @@ class RDJReloaded {
         $reloaded_home = file_get_html($url);
         
         $db = $this->getDbConnection();
-        $qryProgr = $db->prepare("REPLACE INTO `programma` (slug, nome, url_immagine) "
+        $insProgr = $db->prepare("REPLACE INTO `programma` (slug, nome, url_immagine) "
                 . "VALUES (:slug, :nome, :urlImg)");
         foreach ($reloaded_home->find('ul[class="block-grid"]',0)->find("li") as $programma) {
             $imgEl = $programma->find("img",0);
             $img = $imgEl->src;
             $nome = $imgEl->alt;
             $slug = self::createSlug($nome);
-            $qryProgr->execute([
+            $cntProgr = current($db->query("SELECT COUNT(*) FROM `programma` WHERE `slug` = '$slug' ")->fetch());
+            if ($cntProgr > 0) { // Programma già presente
+                echo "Programma '$slug' già presente\n";
+                continue;
+            }
+            $insProgr->execute([
                 ':slug' => $slug, 
                 ':nome' => $nome, 
                 ':urlImg' => $img, 
@@ -72,7 +77,7 @@ class RDJReloaded {
      */
     public function aggiornaPodcast ($programma = '%') {
         $db = $this->getDbConnection();
-        $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'");
+        $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'")->fetchAll();
         
         foreach ($qrPodcast as $riga) {
             echo "Elaborazione programma '{$riga['slug']}' \n";
@@ -93,7 +98,7 @@ class RDJReloaded {
                 if ($qrFind > 0) {
                     // Se ho già questo titolo tutto il mio programma è aggiornato
                     echo "Episodio già presente, programma aggiornato\n";
-                    break 2;
+                    continue 2;
                 }
                 $this->leggiProgramma($titolo, $riga['id'], $link->href);
             }
@@ -135,10 +140,12 @@ class RDJReloaded {
             return;
         
         // Contatore visite
-        $a = $db->exec("INSERT OR REPLACE INTO  `programma_visite` (`id_programma`, `visite`) "
-                . "VALUES ({$programma['id']}, "
-                    . "COALESCE((SELECT `visite`+1 FROM `programma_visite` "
-                        . "WHERE `id_programma` = '{$programma['id']}'), 1)) ");
+        $updCnt = $db->exec("UPDATE `programma_visite` SET `visite` = `visite` + 1  "
+                . "WHERE `id_programma` = '{$programma['id']}' ");
+        if ($updCnt == 0) {
+            $db->exec("INSERT INTO `programma_visite` (`id_programma`, `visite`) "
+                . "VALUES ('{$programma['id']}', 1) ");
+        }
 
         $xml = new DOMDocument();
         $root = $xml->appendChild($xml->createElement('rss'));
