@@ -65,7 +65,7 @@
                         <a class="page-scroll" href="#perche">Perch&eacute;</a>
                     </li>
                     <li>
-                        <a class="page-scroll" href="#programmi">Programmi</a>
+                        <a class="page-scroll" href="#podcast">Podcast</a>
                     </li>
                     <li>
                         <a class="page-scroll" href="#crediti">Crediti</a>
@@ -106,11 +106,11 @@
     </section>
 
     <!-- Download Section -->
-    <section id="programmi" class="content-section text-center">
+    <section id="podcast" class="content-section text-center">
         <div class="download-section">
             <div class="container">
                 <div class="col-lg-6 col-lg-offset-3">
-                    <h2>Elenco programmi</h2>
+                    <h2>Elenco podcast</h2>
                     <ul class="list-group">
                         <?php 
                         require_once 'rdjreloaded.php';
