@@ -163,7 +163,7 @@ class RDJReloaded {
         $chan_img->setAttribute('href', $programma['url_immagine']);
         
         // Query elenco episodi
-        $q_episodi = "SELECT * FROM `episodio` WHERE `id_programma` = '{$programma['id']}' LIMIT 10 ";
+        $q_episodi = "SELECT * FROM `episodio` WHERE `id_programma` = '{$programma['id']}' ORDER BY `data_inserimento` DESC ";
 
         foreach ($db->query($q_episodi)->fetchAll() as $episodio) {
             $item = $chan->appendChild($xml->createElement('item'));
