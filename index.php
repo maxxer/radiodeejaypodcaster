@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Radio Deejay podcaster per i programmi in reloaded">
+    <meta name="description" content="Radio Deejay podcast per i programmi completi in reloaded">
     <meta name="author" content="Lorenzo 'maxxer' Milesi">
     <meta name="og:image" content="http://deejayreloadedpodcast.maxxer.it/img/radiodeejay_logo.png">
 
@@ -17,8 +17,8 @@
     <link href="css/grayscale.css" rel="stylesheet">
     <!-- Custom Fonts -->
     <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
-    <link href="http://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet" type="text/css">
-    <link href="http://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
+    <link href="//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+    <link href="//fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -117,9 +117,9 @@
                         $lib = new RDJReloaded();
                         foreach ($lib->generaElencoProgrammi() as $p) : ?>
                         <li class="list-group-item">
-                          <span class="badge"><a href="/podcast/<?=$p['slug']?>.xml" title="Feed podcast"><?=$p['conteggio']?> <i class="fa fa-rss animated"></i></a></span>
-                          <a href="<?=$p['url_archivio']?>" title="Homepage reloaded" target="_blank"><i class="fa fa-home animated"></i></a>
-                          <?=$p['nome']?>
+                          <span class="badge"><a href="/podcast/<?=$p['slug']?>.xml" title="Feed podcast <?=$p['nome']?>"><?=$p['conteggio']?> <i class="fa fa-rss animated"></i></a></span>
+                          <a href="<?=$p['url_archivio']?>" title="Homepage reloaded <?=$p['nome']?>" target="_blank"><i class="fa fa-home animated"></i></a>
+                          Podcast <?=$p['nome']?>
                         </li>
                         <?php endforeach; ?>
 
