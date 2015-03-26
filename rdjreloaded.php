@@ -116,7 +116,7 @@ class RDJReloaded {
         $db = $this->getDbConnection();
         $qAddPodcast = $db->prepare("INSERT INTO `episodio` "
                 . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
-                . "VALUES ('$id_programma', '$titolo', :file, '$url', datetime())");
+                . "VALUES ('$id_programma', '$titolo', :file, '$url', :pubdate)");
         $doc = file_get_html($url);
         $iframe = $doc->find("iframe",0)->src;
         $iframe_query = parse_url($iframe, PHP_URL_QUERY);
@@ -125,8 +125,13 @@ class RDJReloaded {
             $kv = explode("=", $p);
             $val [$kv[0]] = $kv[1];
         }
+        // Data inserimento da og:published
+        $dt = DateTime::createFromFormat("Y-m-d\TH:i:s", $doc->find('meta[property="og:published_time"]',0)->content);
+        if ($dt === FALSE) // Se la data non è valida
+            $dt = new DateTime();
+
         // A questo punto ho le chiavi 'file' e 'image'
-        $qAddPodcast->execute([':file' => $val['file']]);        
+        $qAddPodcast->execute([':file' => $val['file'], ':pubdate' => $dt->getTimestamp()]);
     }
     
     /**
@@ -179,7 +184,7 @@ class RDJReloaded {
 //            $enclosure->setAttribute('length', filesize($episode['audio_file']));
 //            $enclosure->setAttribute('type', finfo_file($finfo, $episode['audio_file']));
 
-            $item->appendChild($xml->createElement('pubDate', date('D, d M Y H:i:s O', strtotime($episodio['data_inserimento']))));
+            $item->appendChild($xml->createElement('pubDate', date('D, d M Y H:i:s O', $episodio['data_inserimento'])));
 
         //    $getID3 = new getID3();
         //    $fileinfo = $getID3->analyze($episode['audio_file']);

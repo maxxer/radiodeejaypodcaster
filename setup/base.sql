@@ -19,6 +19,6 @@ CREATE TABLE `episodio` (
   `titolo` varchar(250) NOT NULL,
   `href` varchar(255) NOT NULL,
   `url_file` varchar(255) NOT NULL,
-  `data_inserimento` datetime NOT NULL,
+  `data_inserimento` integer NOT NULL,
   FOREIGN KEY(id_programma) REFERENCES programma(id)
 ) ;
