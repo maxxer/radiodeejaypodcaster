@@ -220,7 +220,7 @@ class RDJReloaded {
      * @return string
      */
     public static function createSlug ($name) {
-        return strtolower(preg_replace("/\s/", "-", $name));
+        return strtolower(str_replace('²', '2', preg_replace("/\s/", "-", $name)));
     }
     
     /**
