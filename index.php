@@ -50,7 +50,7 @@
                     <i class="fa fa-bars"></i>
                 </button>
                 <a class="navbar-brand page-scroll" href="#page-top">
-                    <i class="fa fa-play-circle"></i> Radio Deejay  <span class="light">podcaster</span>
+                    <i class="fa fa-play-circle"></i> Radio Deejay Reloaded <span class="light">podcaster</span>
                 </a>
             </div>
 
