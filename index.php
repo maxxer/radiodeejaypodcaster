@@ -172,6 +172,15 @@
         </div>
     </footer>
 
+    <!-- who wants some cookies? -->
+    <script type="text/javascript"
+      id="cookieinfo"
+    	src="//cookieinfoscript.com/js/cookieinfo.min.js"
+    	data-message="Questo sito usa i cookie per le statistiche e le (infruttuose) pubblicit&agrave;. Continuando la navigazione acconsenti all'uso dei cookie per questi scopi."
+      data-moreinfo="https://lorenzo.mile.si/la-manfrina-dei-cookie/"
+      data-accept-on-scroll=true
+      data-close-text="Ci sto!">
+    </script>
     <!-- jQuery -->
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <!-- Bootstrap Core JavaScript -->
@@ -180,7 +189,6 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
     <!-- Custom Theme JavaScript -->
     <script src="js/grayscale.js"></script>
-
 </body>
 
 </html>
