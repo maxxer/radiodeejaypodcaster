@@ -36,7 +36,7 @@
       ga('create', 'UA-37294214-4', 'auto');
       ga('send', 'pageview');
 
-    </script>    
+    </script>
 
 </head>
 
@@ -69,6 +69,9 @@
                     </li>
                     <li>
                         <a class="page-scroll" href="#crediti">Crediti</a>
+                    </li>
+                    <li>
+                        <a target="_blank" href="https://lorenzo.mile.si/category/deejay-reloaded-podcaster/">News</a>
                     </li>
                 </ul>
             </div>
@@ -112,7 +115,7 @@
                 <div class="col-lg-6 col-lg-offset-3">
                     <h2>Elenco podcast</h2>
                     <ul class="list-group">
-                        <?php 
+                        <?php
                         require_once 'rdjreloaded.php';
                         $lib = new RDJReloaded();
                         foreach ($lib->generaElencoProgrammi() as $p) : ?>
@@ -165,7 +168,7 @@
     <!-- Footer -->
     <footer>
         <div class="container text-center">
-            <p>Copyright &copy; maxxer 2015</p>
+            <p>Copyright &copy; maxxer 2016</p>
         </div>
     </footer>
 
