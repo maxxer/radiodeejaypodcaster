@@ -2,9 +2,9 @@
 /**
  * Radio Deejay RELOADED podcaster
  * @author Lorenzo Milesi <lorenzo@mile.si>
- * @copyright 2015 Lorenzo Milesi 
+ * @copyright 2016 Lorenzo Milesi
  * @license GNU GPL v3
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -26,9 +26,10 @@ class RDJReloaded {
     private $baseUrl = "http://www.deejay.it/reloaded/radio/";
     private $baseUrlArchivio = "http://www.deejay.it/audio/?reloaded=";
     private $nextPageClass = "nextpostslink";
-    
+
+    /* @var PDO */
     private $conn;
-   
+
     /**
      * Scansiona la homepage di Deejay Reloaded e crea la lista dei programmi disponibili, raccogliendo
      * titolo, nome, URL immagine e lo slug.
@@ -42,49 +43,59 @@ class RDJReloaded {
         if (is_null($url))
             $url = $this->baseUrl;
         $reloaded_home = file_get_html($url);
-        
+
         $db = $this->getDbConnection();
         $insProgr = $db->prepare("REPLACE INTO `programma` (slug, nome, url_immagine) "
                 . "VALUES (:slug, :nome, :urlImg)");
+        // Per ogni link della home apro la pagina e prelevo i dati del programma
         foreach ($reloaded_home->find('ul[class="block-grid"]',0)->find("li") as $programma) {
-            $imgEl = $programma->find("img",0);
-            $img = $imgEl->src;
-            $nome = $imgEl->alt;
-            $slug = self::createSlug($nome);
+            $url_puntata = $programma->find("a",0)->href;
+            $dom_programma = file_get_html($url_puntata);
+            // Immagine programma dall'elenco, perché quello della pagina della puntata si riferisce all'episodio stesso
+            $img = $programma->find("img",0)->src;
+            // Titolo da hgroup > h2.xlarge-title > a
+            $nome = $dom_programma->find('hgroup h2[class="xlarge-title"] a',0)->title;
+            // Slug dal link ad "Archivio +"
+            $slug_url = $dom_programma->find('hgroup span[class="small-title"] a',0)->href;
+            list(, $slug) = explode("=", $slug_url);
+
+            // Verifico se ho già il programma
             $cntProgr = current($db->query("SELECT COUNT(*) FROM `programma` WHERE `slug` = '$slug' ")->fetch());
             if ($cntProgr > 0) { // Programma già presente
                 echo "Programma '$slug' già presente\n";
                 continue;
             }
+            // Altrimenti inserisco
             $insProgr->execute([
-                ':slug' => $slug, 
-                ':nome' => $nome, 
-                ':urlImg' => $img, 
+                ':slug' => $slug,
+                ':nome' => $nome,
+                ':urlImg' => $img,
             ]);
+            echo "Programma '$slug' inserito\n";
         }
-        
+
         // Cerco se c'è una pagina successiva
         $next = $reloaded_home->find('a[class="'.$this->nextPageClass.'"]', 0);
         if (!is_null($next)) {
             return $this->scanList($next->href);
-        } 
+        }
         return;
     }
-    
+
     /**
-     * Aggiorna gli episodi di uno o più programmi 
+     * Aggiorna gli episodi di uno o più programmi
      * @param string $programma SLUG del programma, % per tutti.
      */
     public function aggiornaPodcast ($programma = '%') {
         $db = $this->getDbConnection();
         $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'")->fetchAll();
-        
+
         foreach ($qrPodcast as $riga) {
             echo "Elaborazione programma '{$riga['slug']}' \n";
             $urlArchivio = $this->baseUrlArchivio.$riga['slug'];
             echo "Apertura pagina archivio '$urlArchivio' \n";
             $pagArchivio = file_get_html($urlArchivio);
-            
+
             $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0);
             if (empty($elencoEpisodi)) {
                 echo "ATTENZIONE: nessun link trovato!\n";
@@ -104,11 +115,11 @@ class RDJReloaded {
             }
         }
     }
-    
+
     /**
      * Scansione pagina del programma alla ricerca degli episodi, e popolazione della tabella `episodi`
      * @param string $titolo Titolo dell'episodio
-     * @param integer $id_programma id del programma nella tabella 
+     * @param integer $id_programma id del programma nel db
      * @param string $url URL dell'episodio
      */
     private function leggiProgramma ($titolo, $id_programma, $url) {
@@ -120,7 +131,7 @@ class RDJReloaded {
         $doc = file_get_html($url);
         $iframe = $doc->find("iframe",0)->src;
         $iframe_query = parse_url($iframe, PHP_URL_QUERY);
-        // rimuovere la prima parte 
+        // rimuovere la prima parte
         foreach (explode("&", $iframe_query) as $p) {
             $kv = explode("=", $p);
             $val [$kv[0]] = $kv[1];
@@ -133,7 +144,7 @@ class RDJReloaded {
         // A questo punto ho le chiavi 'file' e 'image'
         $qAddPodcast->execute([':file' => $val['file'], ':pubdate' => $dt->getTimestamp()]);
     }
-    
+
     /**
      * Genera l'XML del podcast e lo emette su stdout
      * @param string $prog SLUG programma
@@ -143,7 +154,7 @@ class RDJReloaded {
         $programma = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$prog'")->fetch();
         if (empty($programma))
             return;
-        
+
         // Contatore visite
         $updCnt = $db->exec("UPDATE `programma_visite` SET `visite` = `visite` + 1  "
                 . "WHERE `id_programma` = '{$programma['id']}' ");
@@ -166,7 +177,7 @@ class RDJReloaded {
         $chan->appendChild($xml->createElement('language', 'it'));
         $chan_img = $chan->appendChild($xml->createElement('itunes:image'));
         $chan_img->setAttribute('href', $programma['url_immagine']);
-        
+
         // Query elenco episodi
         $q_episodi = "SELECT * FROM `episodio` WHERE `id_programma` = '{$programma['id']}' ORDER BY `data_inserimento` DESC ";
 
@@ -194,9 +205,9 @@ class RDJReloaded {
         $xml->formatOutput = true;
         print $xml->saveXML();
     }
-    
+
     /**
-     * Torna l'elenco dei programmi
+     * Torna l'elenco dei programmi, da usare nel frontend
      * @return array
      */
     public function generaElencoProgrammi () {
@@ -213,16 +224,7 @@ class RDJReloaded {
             return;
         return $programmi;
     }
-    
-    /**
-     * Genera lo slug partendo dal nome del programma
-     * @param string $name
-     * @return string
-     */
-    public static function createSlug ($name) {
-        return strtolower(preg_replace("/\s/", "-", $name));
-    }
-    
+
     /**
      * Genera l'oggetto della connessione SQLite
      * @return PDO

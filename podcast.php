@@ -3,9 +3,9 @@
 /**
  * Radio Deejay RELOADED podcaster
  * @author Lorenzo Milesi <lorenzo@mile.si>
- * @copyright 2015 Lorenzo Milesi 
+ * @copyright 2016 Lorenzo Milesi 
  * @license GNU GPL v3
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
