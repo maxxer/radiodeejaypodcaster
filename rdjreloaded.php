@@ -27,6 +27,8 @@ class RDJReloaded {
     private $baseUrlArchivio = "http://www.deejay.it/audio/?reloaded=";
     private $nextPageClass = "nextpostslink";
 
+    const CACHE_PREFIX = "rdjreloaded";
+
     /* @var PDO */
     private $conn;
 
@@ -150,6 +152,13 @@ class RDJReloaded {
      * @param string $prog SLUG programma
      */
     public function generaXmlProgramma($prog) {
+        $cache_key = self::CACHE_PREFIX."-xml-".$prog;
+        $cached = $this->cache_get($cache_key);
+        if ($cached !== FALSE) {
+            print $cached;
+            return;
+        }
+
         $db = $this->getDbConnection();
         $programma = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$prog'")->fetch();
         if (empty($programma))
@@ -203,7 +212,10 @@ class RDJReloaded {
         }
 
         $xml->formatOutput = true;
-        print $xml->saveXML();
+        $outXml = $xml->saveXML();
+        // Cache dell'XML per un'oretta
+        $this->cache_add($cache_key, $outXml);
+        print $outXml;
     }
 
     /**
@@ -211,6 +223,12 @@ class RDJReloaded {
      * @return array
      */
     public function generaElencoProgrammi () {
+        $cache_key = self::CACHE_PREFIX."-elencoprogrammi";
+        $cached = $this->cache_get($cache_key);
+        if ($cached !== FALSE) {
+            return $cached;
+        }
+
         $db = $this->getDbConnection();
         $q_programmi = "SELECT *, "
                 . "COUNT(*) AS conteggio, "
@@ -222,6 +240,8 @@ class RDJReloaded {
         $programmi = $db->query($q_programmi)->fetchAll();
         if (empty($programmi))
             return;
+
+        $this->cache_add($cache_key, $programmi);
         return $programmi;
     }
 
@@ -232,11 +252,36 @@ class RDJReloaded {
     public function getDbConnection () {
         if (empty($this->conn)) {
             try {
-                $this->conn = new PDO("sqlite:radiodeejayreloaded.sqldb");
+                $this->conn = new PDO("sqlite:".__DIR__."/radiodeejayreloaded.sqldb","","",array(PDO::ATTR_PERSISTENT => true));
             } catch (PDOException $e) {
-                die ("SQLite db missing: ".$e->getMessage());
+                die ("Errore apertura DB: ".$e->getMessage());
             }
         }
         return $this->conn;
+    }
+
+    /**
+     * Reperisce il contenuto di una chiave dalla cache
+     * @param string $key Chiave
+     * @return boolean|mixed FALSE se non c'è niente nella cache, altrimenti il contenuto della chiave
+     */
+    private function cache_get($key)
+    {
+        if (!extension_loaded('apc') || ini_get('apc.enabled') == 0)
+            return FALSE;
+        return apcu_fetch($key);
+    }
+
+    /**
+     * Aggiunge una variabile alla cache
+     * @param string $key Chiave
+     * @param mixed $what Variabile da aggiungere
+     * @param integer $ttl Tempo di durata della cache
+     */
+    private function cache_add($key, $what, $ttl = 3600)
+    {
+        if (!extension_loaded('apc') || ini_get('apc.enabled') == 0)
+            return;
+        apcu_add($key, $what, $ttl);
     }
 }
