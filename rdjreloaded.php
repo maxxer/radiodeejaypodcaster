@@ -42,6 +42,7 @@ class RDJReloaded {
      */
     public function scanList ($url = NULL)
     {
+        self::log("INIZIO SCANSIONE ELENCO PROGRAMMI\n");
         if (is_null($url))
             $url = $this->baseUrl;
         $reloaded_home = file_get_html($url);
@@ -64,7 +65,7 @@ class RDJReloaded {
             // Verifico se ho già il programma
             $cntProgr = current($db->query("SELECT COUNT(*) FROM `programma` WHERE `slug` = '$slug' ")->fetch());
             if ($cntProgr > 0) { // Programma già presente
-                echo "Programma '$slug' già presente\n";
+                self::log("Programma '$slug' già presente\n");
                 continue;
             }
             // Altrimenti inserisco
@@ -73,7 +74,7 @@ class RDJReloaded {
                 ':nome' => $nome,
                 ':urlImg' => $img,
             ]);
-            echo "Programma '$slug' inserito\n";
+            self::log("Programma '$slug' inserito\n");
         }
 
         // Cerco se c'è una pagina successiva
@@ -81,6 +82,7 @@ class RDJReloaded {
         if (!is_null($next)) {
             return $this->scanList($next->href);
         }
+        self::log("FINE SCANSIONE ELENCO PROGRAMMI\n");
         return;
     }
 
@@ -89,33 +91,35 @@ class RDJReloaded {
      * @param string $programma SLUG del programma, % per tutti.
      */
     public function aggiornaPodcast ($programma = '%') {
+        self::log("INIZIO AGGIORNAMENTO PROGRAMMA\n");
         $db = $this->getDbConnection();
         $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'")->fetchAll();
 
         foreach ($qrPodcast as $riga) {
-            echo "Elaborazione programma '{$riga['slug']}' \n";
+            self::log("Elaborazione programma '{$riga['slug']}' \n");
             $urlArchivio = $this->baseUrlArchivio.$riga['slug'];
-            echo "Apertura pagina archivio '$urlArchivio' \n";
+            self::log("Apertura pagina archivio '$urlArchivio' \n");
             $pagArchivio = file_get_html($urlArchivio);
 
             $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0);
             if (empty($elencoEpisodi)) {
-                echo "ATTENZIONE: nessun link trovato!\n";
+                self::log("ATTENZIONE: nessun link trovato!\n");
                 continue;
             }
             foreach ($elencoEpisodi->find("li a[1]") as $link) {
-                echo "Rilevato episodio '{$link->title}' con url '{$link->href}' \n";
+                self::log("Rilevato episodio '{$link->title}' con url '{$link->href}' \n");
                 $titolo = $link->title;
                 $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
                     . "`id_programma` = '{$riga['id']}' AND `href` = '{$link->href}' ")->fetch());
                 if ($qrFind > 0) {
                     // Se ho già questo titolo tutto il mio programma è aggiornato
-                    echo "Episodio già presente, programma aggiornato\n";
+                    self::log("Episodio già presente, programma aggiornato\n");
                     continue 2;
                 }
                 $this->leggiProgramma($titolo, $riga['id'], $link->href);
             }
         }
+        self::log("FINE AGGIORNAMENTO PROGRAMMA\n");
     }
 
     /**
@@ -125,7 +129,7 @@ class RDJReloaded {
      * @param string $url URL dell'episodio
      */
     private function leggiProgramma ($titolo, $id_programma, $url) {
-        echo "Lettura url '$url' per programma $id_programma \n";
+        self::log("Lettura url '$url' per programma $id_programma \n");
         $db = $this->getDbConnection();
         $qAddPodcast = $db->prepare("INSERT INTO `episodio` "
                 . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
@@ -283,5 +287,13 @@ class RDJReloaded {
         if (!extension_loaded('apc') || ini_get('apc.enabled') == 0)
             return;
         apcu_add($key, $what, $ttl);
+    }
+
+    /**
+     * Emette un messaggio su stdout
+     */
+    private static function log($message)
+    {
+        echo date("Y-m-d H:i:s")." ".$message;
     }
 }
