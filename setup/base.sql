@@ -22,3 +22,4 @@ CREATE TABLE `episodio` (
   `data_inserimento` integer NOT NULL,
   FOREIGN KEY(id_programma) REFERENCES programma(id)
 ) ;
+CREATE UNIQUE INDEX idxehref ON episodio(href);

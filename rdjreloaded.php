@@ -42,9 +42,10 @@ class RDJReloaded {
      */
     public function scanList ($url = NULL)
     {
-        self::log("INIZIO SCANSIONE ELENCO PROGRAMMI\n");
-        if (is_null($url))
+        if (is_null($url)) {
+            self::log("INIZIO SCANSIONE ELENCO PROGRAMMI\n");
             $url = $this->baseUrl;
+        }
         $reloaded_home = file_get_html($url);
 
         $db = $this->getDbConnection();
@@ -89,8 +90,9 @@ class RDJReloaded {
     /**
      * Aggiorna gli episodi di uno o più programmi
      * @param string $programma SLUG del programma, % per tutti.
+     * @param boolean $noStop Se TRUE non si ferma quando incontra il primo episodio già presente. Predefinito FALSE
      */
-    public function aggiornaPodcast ($programma = '%') {
+    public function aggiornaPodcast ($programma = '%', $noStop = FALSE) {
         self::log("INIZIO AGGIORNAMENTO PROGRAMMA\n");
         $db = $this->getDbConnection();
         $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'")->fetchAll();
@@ -98,32 +100,50 @@ class RDJReloaded {
         foreach ($qrPodcast as $riga) {
             self::log("Elaborazione programma '{$riga['slug']}' \n");
             $urlArchivio = $this->baseUrlArchivio.$riga['slug'];
-            self::log("Apertura pagina archivio '$urlArchivio' \n");
-            $pagArchivio = file_get_html($urlArchivio);
-
-            $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0);
-            if (empty($elencoEpisodi)) {
-                self::log("ATTENZIONE: nessun link trovato!\n");
-                continue;
-            }
-            foreach ($elencoEpisodi->find("li a[1]") as $link) {
-                self::log("Rilevato episodio '{$link->title}' con url '{$link->href}' \n");
-                $titolo = $link->title;
-                $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
-                    . "`id_programma` = '{$riga['id']}' AND `href` = '{$link->href}' ")->fetch());
-                if ($qrFind > 0) {
-                    // Se ho già questo titolo tutto il mio programma è aggiornato
-                    self::log("Episodio già presente, programma aggiornato\n");
-                    continue 2;
-                }
-                $this->leggiProgramma($titolo, $riga['id'], $link->href);
-            }
+            $this->leggiPaginaProgramma($urlArchivio, $riga['id'], $noStop);
         }
         self::log("FINE AGGIORNAMENTO PROGRAMMA\n");
     }
 
     /**
-     * Scansione pagina del programma alla ricerca degli episodi, e popolazione della tabella `episodi`
+     * Legge una pagina dell'archvio programma
+     * @param string $url Pagina da leggere
+     * @param integer $id_programma Id del programma
+     * @param boolean $tutto Se TRUE non si ferma quando trova un episodio già presente ma va avanti
+     *  fino a che ci sono pagine. Predefinito FALSE
+     */
+    private function leggiPaginaProgramma($url, $id_programma, $tutto = false)
+    {
+        self::log("Apertura pagina archivio '$url' \n");
+        $pagArchivio = file_get_html($url);
+
+        $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0);
+        if (empty($elencoEpisodi)) {
+            self::log("ATTENZIONE: nessun link trovato!\n");
+            return;
+        }
+        $db = $this->getDbConnection();
+        foreach ($elencoEpisodi->find("li a[1]") as $link) {
+            self::log("Rilevato episodio '{$link->title}' con url '{$link->href}' \n");
+            $titolo = $link->title;
+            $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
+                . "`id_programma` = '$id_programma' AND `href` = '{$link->href}' ")->fetch());
+            if ($qrFind > 0 && $tutto === false) {
+                // Se ho già questo link il programma è aggiornato
+                self::log("Episodio già presente, programma aggiornato\n");
+                return;
+            }
+            $this->leggiProgramma($titolo, $id_programma, $link->href);
+        }
+        // Vediamo se c'è una seconda pagina
+        $nuovaPagina = $pagArchivio->find('a[class="nextpostslink"]', 0);
+        if (!empty($nuovaPagina)) {
+            $this->leggiPaginaProgramma($nuovaPagina->href, $id_programma, $tutto);
+        }
+    }
+
+    /**
+     * Scansiona la pagina del programma con il player popolando la tabella `episodi`
      * @param string $titolo Titolo dell'episodio
      * @param integer $id_programma id del programma nel db
      * @param string $url URL dell'episodio
@@ -131,7 +151,7 @@ class RDJReloaded {
     private function leggiProgramma ($titolo, $id_programma, $url) {
         self::log("Lettura url '$url' per programma $id_programma \n");
         $db = $this->getDbConnection();
-        $qAddPodcast = $db->prepare("INSERT INTO `episodio` "
+        $qAddPodcast = $db->prepare("INSERT OR IGNORE INTO `episodio` "
                 . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
                 . "VALUES ('$id_programma', '$titolo', :file, '$url', :pubdate)");
         $doc = file_get_html($url);
