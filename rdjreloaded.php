@@ -218,7 +218,7 @@ class RDJReloaded {
         $xml->formatOutput = true;
         $outXml = $xml->saveXML();
         // Cache dell'XML per un'oretta
-        $this->cache_add($cache_key, $outXml);
+        $this->cache_add($cache_key, $outXml, 1800);
         print $outXml;
     }
 
@@ -245,7 +245,7 @@ class RDJReloaded {
         if (empty($programmi))
             return;
 
-        $this->cache_add($cache_key, $programmi);
+        $this->cache_add($cache_key, $programmi, 7200);
         return $programmi;
     }
 
