@@ -63,6 +63,7 @@ class RDJReloaded {
             $slug_url = $dom_programma->find('hgroup span[class="small-title"] a',0)->href;
             list(, $slug) = explode("=", $slug_url);
 
+            unset($dom_programma);
             // Verifico se ho già il programma
             $cntProgr = current($db->query("SELECT COUNT(*) FROM `programma` WHERE `slug` = '$slug' ")->fetch());
             if ($cntProgr > 0) { // Programma già presente
@@ -80,6 +81,7 @@ class RDJReloaded {
 
         // Cerco se c'è una pagina successiva
         $next = $reloaded_home->find('a[class="'.$this->nextPageClass.'"]', 0);
+        unset($reloaded_home);
         if (!is_null($next)) {
             return $this->scanList($next->href);
         }
@@ -137,6 +139,7 @@ class RDJReloaded {
         }
         // Vediamo se c'è una seconda pagina
         $nuovaPagina = $pagArchivio->find('a[class="nextpostslink"]', 0);
+        unset($pagArchivio);
         if (!empty($nuovaPagina)) {
             $this->leggiPaginaProgramma($nuovaPagina->href, $id_programma, $tutto);
         }
@@ -169,6 +172,7 @@ class RDJReloaded {
 
         // A questo punto ho le chiavi 'file' e 'image'
         $qAddPodcast->execute([':file' => $val['file'], ':pubdate' => $dt->getTimestamp()]);
+        unset($doc);
     }
 
     /**
