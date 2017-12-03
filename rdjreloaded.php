@@ -23,8 +23,8 @@ require_once("simple_html_dom.php");
 date_default_timezone_set("Europe/Rome");
 
 class RDJReloaded {
-    private $baseUrl = "http://www.deejay.it/reloaded/radio/";
-    private $baseUrlArchivio = "http://www.deejay.it/audio/?reloaded=";
+    private $baseUrl = "https://www.deejay.it/reloaded/radio/";
+    private $baseUrlArchivio = "https://www.deejay.it/audio/?reloaded=";
     private $nextPageClass = "nextpostslink";
 
     const CACHE_PREFIX = "rdjreloaded";
