@@ -51,9 +51,14 @@ class RDJReloaded {
         $db = $this->getDbConnection();
         $insProgr = $db->prepare("REPLACE INTO `programma` (slug, nome, url_immagine) "
                 . "VALUES (:slug, :nome, :urlImg)");
-        // Per ogni link della home apro la pagina e prelevo i dati del programma
+        // Per ogni li della pagina apro il link e prelevo i dati del programma
         foreach ($reloaded_home->find('ul[class="block-grid"]',0)->find("li") as $programma) {
-            $url_puntata = $programma->find("a",0)->href;
+            $link_programma = $programma->find("a",0);
+            if (is_null($link_programma)) {
+                // Capita (2018.01.29 - Il Rosario della sera) che pubblichino un "placeholder" al programma senza link
+                continue;
+            }
+            $url_puntata = $link_programma->href;
             $dom_programma = file_get_html($url_puntata);
             // Immagine programma dall'elenco, perché quello della pagina della puntata si riferisce all'episodio stesso
             $img = $programma->find("img",0)->src;
