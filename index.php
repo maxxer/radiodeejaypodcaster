@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Radio Deejay podcast per i programmi completi in reloaded">
     <meta name="author" content="Lorenzo 'maxxer' Milesi">
-    <meta name="og:image" content="http://deejayreloadedpodcast.maxxer.it/img/radiodeejay_logo.png">
+    <meta name="og:image" content="https://deejayreloadedpodcast.maxxer.it/img/radiodeejay_logo.png">
 
     <title>Radio Deejay /reloaded/ podcaster</title>
 
