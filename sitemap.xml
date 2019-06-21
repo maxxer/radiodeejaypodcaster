@@ -6,7 +6,11 @@
             http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
 <url>
-  <loc>http://deejayreloadedpodcast.maxxer.it/</loc>
+  <loc>https://deejayreloadedpodcast.maxxer.it/</loc>
+  <changefreq>monthly</changefreq>
+</url>
+<url>
+  <loc>https://deejayreloadedpodcast.maxxer.it/v2019/</loc>
   <changefreq>hourly</changefreq>
 </url>
 </urlset>
