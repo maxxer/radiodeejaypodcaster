@@ -8,6 +8,7 @@
     <meta name="description" content="Radio Deejay podcast per i programmi completi in reloaded">
     <meta name="author" content="Lorenzo 'maxxer' Milesi">
     <meta name="og:image" content="https://deejayreloadedpodcast.maxxer.it/img/radiodeejay_logo.png">
+    <meta http-equiv="refresh" content="10; url=v2019/" />
 
     <title>Radio Deejay /reloaded/ podcaster</title>
 
@@ -93,6 +94,8 @@
                     <div class="col-md-8 col-md-offset-2">
                         <h1 class="brand-heading">Reloaded Podcaster</h1>
                         <p class="intro-text"><strong>unofficial</strong> podcast per tutti i programmi di Radio Deejay in <em>reloaded</em>.</p>
+                        <p class="intro-text"><strong>ATTENZIONE</strong> dal 17 giugno 2019 il sito di Deejay è stato cambiato, sono stati rimossi molti programmi e sono cambiati tutti gli URL delle puntate. Essendo questi "chiave" univoca per determinare se un audio è già stato scaricato con il nuovo sito sarebbero risultati tutti episodi nuovi. Per evitare problemi ho creato una nuova pagina con nuovi podcast.<br>
+Verrai rimandato entro 10 secondi, altrimenti <a href="v2019/">clicca qui</a>. 
                         <a href="http://www.deejay.it" target="_blank"><img src="img/radiodeejay_logo.png" alt="Radio Deejay" /></a> <br />
                         <a href="#perche" class="btn btn-circle page-scroll">
                             <i class="fa fa-angle-double-down animated"></i>
@@ -119,6 +122,7 @@
             <div class="container">
                 <div class="col-lg-6 col-lg-offset-3">
                     <h2>Elenco podcast</h2>
+                    <p>Questo elenco non è più aggiornato, rimane solo come archivio! Vedere il <a href="v2019">nuovo feed</a> per i programmi aggiornati</p>
                     <ul class="list-group">
                         <?php
                         require_once 'rdjreloaded.php';

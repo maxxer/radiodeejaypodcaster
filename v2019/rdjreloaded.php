@@ -2,7 +2,7 @@
 /**
  * Radio Deejay RELOADED podcaster
  * @author Lorenzo Milesi <lorenzo@mile.si>
- * @copyright 2016 Lorenzo Milesi
+ * @copyright 2019 Lorenzo Milesi
  * @license GNU GPL v3
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,11 +23,9 @@ require_once("simple_html_dom.php");
 date_default_timezone_set("Europe/Rome");
 
 class RDJReloaded {
-    private $baseUrl = "https://www.deejay.it/reloaded/radio/";
-    private $baseUrlArchivio = "https://www.deejay.it/audio/?reloaded=";
-    private $nextPageClass = "nextpostslink";
+    private $baseUrl = "https://www.deejay.it/programmi/";
 
-    const CACHE_PREFIX = "rdjreloaded";
+    const CACHE_PREFIX = "201906-rdjreloaded";
 
     /* @var PDO */
     private $conn;
@@ -49,47 +47,57 @@ class RDJReloaded {
         $reloaded_home = file_get_html($url);
 
         $db = $this->getDbConnection();
-        $insProgr = $db->prepare("REPLACE INTO `programma` (slug, nome, url_immagine) "
-                . "VALUES (:slug, :nome, :urlImg)");
+        $insProgr = $db->prepare("INSERT INTO `programma` (`slug`, `nome`, `url_immagine`, `url_thumb`) "
+            . "VALUES (:slug, :nome, :urlImg, :urlThumb)");
+        $updProgr = $db->prepare("UPDATE `programma` SET `nome` = :nome, `url_immagine` = :urlImg, `url_thumb` = :urlThumb "
+            . "WHERE `slug` = :slug");
         // Per ogni li della pagina apro il link e prelevo i dati del programma
-        foreach ($reloaded_home->find('ul[class="block-grid"]',0)->find("li") as $programma) {
-            $link_programma = $programma->find("a",0);
+        foreach ($reloaded_home->find('section.program-list',0)->find("article") as $programma) {
+            // Prendo il link dell'immagine
+            $link_programma = $programma->find("figure a", 0);
             if (is_null($link_programma)) {
                 // Capita (2018.01.29 - Il Rosario della sera) che pubblichino un "placeholder" al programma senza link
                 continue;
             }
-            $url_puntata = $link_programma->href;
-            $dom_programma = file_get_html($url_puntata);
-            // Immagine programma dall'elenco, perché quello della pagina della puntata si riferisce all'episodio stesso
-            $img = $programma->find("img",0)->src;
-            // Titolo da hgroup > h2.xlarge-title > a
-            $nome = $dom_programma->find('hgroup h2[class="xlarge-title"] a',0)->title;
-            // Slug dal link ad "Archivio +"
-            $slug_url = $dom_programma->find('hgroup span[class="small-title"] a',0)->href;
-            list(, $slug) = explode("=", $slug_url);
+            // Apro la pagina di dettaglio del programma 
+            $dom_programma = file_get_html($link_programma->href);
+            // Immagine programma
+            $img = $dom_programma->find('meta[property="og:image"]', 0)->content;
+            $thumb = $programma->find('figure img', 0)->src;
+            // Titolo da hgroup > h2.title 
+            $nome = $dom_programma->find('article hgroup h2[class="title"]', 0)->plaintext;
+            // Slug dal link corrente
+            $url_parse = parse_url($link_programma->href, PHP_URL_PATH);
+            $slug = str_replace(["programmi", "/"], "", $url_parse);
 
             unset($dom_programma);
-            // Verifico se ho già il programma
-            $cntProgr = current($db->query("SELECT COUNT(*) FROM `programma` WHERE `slug` = '$slug' ")->fetch());
-            if ($cntProgr > 0) { // Programma già presente
-                self::log("Programma '$slug' già presente\n");
-                continue;
-            }
-            // Altrimenti inserisco
-            $insProgr->execute([
+            $queryParams = [
                 ':slug' => $slug,
                 ':nome' => $nome,
                 ':urlImg' => $img,
-            ]);
-            self::log("Programma '$slug' inserito\n");
+                ':urlThumb' => $thumb,
+            ];
+            // Verifico se ho già il programma
+            $cntProgr = current($db->query("SELECT COUNT(*) FROM `programma` WHERE `slug` = '$slug' ")->fetch());
+            if ($cntProgr > 0) { // Programma già presente
+                // Aggiorno in caso sia cambiata l'immagine o il titolo (?)
+                $updProgr->execute($queryParams);
+                self::log("Programma '$slug' aggiornato\n");
+            } else {
+                // Altrimenti inserisco
+                $insProgr->execute($queryParams);
+                self::log("Programma '$slug' inserito\n");
+            }
         }
 
         // Cerco se c'è una pagina successiva
+        /** 2019.06.19 per ora la paginazione non c'è
         $next = $reloaded_home->find('a[class="'.$this->nextPageClass.'"]', 0);
         unset($reloaded_home);
         if (!is_null($next)) {
             return $this->scanList($next->href);
         }
+        */
         self::log("FINE SCANSIONE ELENCO PROGRAMMI\n");
         return;
     }
@@ -106,8 +114,8 @@ class RDJReloaded {
 
         foreach ($qrPodcast as $riga) {
             self::log("Elaborazione programma '{$riga['slug']}' \n");
-            $urlArchivio = $this->baseUrlArchivio.$riga['slug'];
-            $this->leggiPaginaProgramma($urlArchivio, $riga['id'], $noStop);
+            $urlPuntate = $this->baseUrl.$riga['slug']."/puntate/";
+            $this->leggiPaginaProgramma($urlPuntate, $riga['id'], $noStop);
         }
         self::log("FINE AGGIORNAMENTO PROGRAMMA\n");
     }
@@ -121,18 +129,17 @@ class RDJReloaded {
      */
     private function leggiPaginaProgramma($url, $id_programma, $tutto = false)
     {
-        self::log("Apertura pagina archivio '$url' \n");
+        self::log("Apertura pagina puntate '$url' \n");
         $pagArchivio = file_get_html($url);
 
-        $elencoEpisodi = $pagArchivio->find('ul[class="lista"]',0);
+        $elencoEpisodi = $pagArchivio->find('section.puntate-list ul',0);
         if (empty($elencoEpisodi)) {
             self::log("ATTENZIONE: nessun link trovato!\n");
             return;
         }
         $db = $this->getDbConnection();
-        foreach ($elencoEpisodi->find("li a[1]") as $link) {
-            self::log("Rilevato episodio '{$link->title}' con url '{$link->href}' \n");
-            $titolo = $link->title;
+        foreach ($elencoEpisodi->find("li h1 a") as $link) {
+            self::log("Rilevato episodio '{$link->plaintext}' con url '{$link->href}' \n");
             $qrFind = current($db->query("SELECT COUNT(*) FROM `episodio` WHERE "
                 . "`id_programma` = '$id_programma' AND `href` = '{$link->href}' ")->fetch());
             if ($qrFind > 0 && $tutto === false) {
@@ -140,10 +147,10 @@ class RDJReloaded {
                 self::log("Episodio già presente, programma aggiornato\n");
                 return;
             }
-            $this->leggiProgramma($titolo, $id_programma, $link->href);
+            $this->leggiProgramma($id_programma, $link->href);
         }
         // Vediamo se c'è una seconda pagina
-        $nuovaPagina = $pagArchivio->find('a[class="nextpostslink"]', 0);
+        $nuovaPagina = $pagArchivio->find('a[class="next"]', 0);
         unset($pagArchivio);
         if (!empty($nuovaPagina)) {
             $this->leggiPaginaProgramma($nuovaPagina->href, $id_programma, $tutto);
@@ -152,31 +159,32 @@ class RDJReloaded {
 
     /**
      * Scansiona la pagina del programma con il player popolando la tabella `episodi`
-     * @param string $titolo Titolo dell'episodio
      * @param integer $id_programma id del programma nel db
      * @param string $url URL dell'episodio
      */
-    private function leggiProgramma ($titolo, $id_programma, $url) {
+    private function leggiProgramma ($id_programma, $url) {
         self::log("Lettura url '$url' per programma $id_programma \n");
         $db = $this->getDbConnection();
         $qAddPodcast = $db->prepare("INSERT OR IGNORE INTO `episodio` "
                 . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
-                . "VALUES ('$id_programma', '$titolo', :file, '$url', :pubdate)");
+                . "VALUES ('$id_programma', :titolo, :file, '$url', :pubdate)");
         $doc = file_get_html($url);
         $iframe = $doc->find("iframe",0)->src;
         $iframe_query = parse_url($iframe, PHP_URL_QUERY);
-        // rimuovere la prima parte
-        foreach (explode("&", $iframe_query) as $p) {
-            $kv = explode("=", $p);
-            $val [$kv[0]] = $kv[1];
-        }
+        // Dei parametri del link iframe estraggo "file"
+        parse_str($iframe_query, $iframe_params);
+        $titolo = $doc->find("h1.title a", 0)->plaintext;
         // Data inserimento da og:published
-        $dt = DateTime::createFromFormat("Y-m-d\TH:i:s", $doc->find('meta[property="og:published_time"]',0)->content);
+        $dt = DateTime::createFromFormat("Y-m-d\TH:i:s", $doc->find('meta[property="article:published_time"]',0)->content);
         if ($dt === FALSE) // Se la data non è valida
             $dt = new DateTime();
 
-        // A questo punto ho le chiavi 'file' e 'image'
-        $qAddPodcast->execute([':file' => $val['file'], ':pubdate' => $dt->getTimestamp()]);
+        // A questo punto ho i dati per l'inserimento della puntata
+        $qAddPodcast->execute([
+            ':file' => $iframe_params['file'], 
+            ':pubdate' => $dt->getTimestamp(), 
+            ':titolo' => $titolo,
+        ]);
         unset($doc);
     }
 
@@ -214,7 +222,7 @@ class RDJReloaded {
 
         $chan = $root->appendChild($xml->createElement('channel'));
         $chan->appendChild($xml->createElement('title', $programma['nome']));
-        $chan->appendChild($xml->createElement('link', $this->baseUrlArchivio.$programma['slug']));
+        $chan->appendChild($xml->createElement('link', $this->baseUrl.$programma['slug']."/puntate/"));
         $chan->appendChild($xml->createElement('generator', 'deejayreloadedpodcast.maxxer.it'));
         $chan->appendChild($xml->createElement('language', 'it'));
         $chan_img = $chan->appendChild($xml->createElement('itunes:image'));
@@ -264,8 +272,8 @@ class RDJReloaded {
 
         $db = $this->getDbConnection();
         $q_programmi = "SELECT *, "
-                . "COUNT(*) AS conteggio, "
-                . "'{$this->baseUrlArchivio}' || `slug` AS url_archivio "
+                . "MAX(`data_inserimento`) AS ultima_puntata, "
+                . "'{$this->baseUrl}' || `slug` || '/puntate/' AS url_archivio "
                 . "FROM `programma` "
                 . "JOIN `episodio` ON `id_programma` = `programma`.`id` "
                 . "GROUP BY `programma`.`slug` "
@@ -274,7 +282,7 @@ class RDJReloaded {
         if (empty($programmi))
             return;
 
-        $this->cache_add($cache_key, $programmi, 1800);
+        $this->cache_add($cache_key, $programmi, 7200);
         return $programmi;
     }
 

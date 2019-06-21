@@ -3,7 +3,7 @@
 /**
  * Radio Deejay RELOADED podcaster
  * @author Lorenzo Milesi <lorenzo@mile.si>
- * @copyright 2016 Lorenzo Milesi 
+ * @copyright 2016 Lorenzo Milesi
  * @license GNU GPL v3
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,8 +20,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+if (empty(trim($argv[1])))
+    exit(1);
 require_once 'rdjreloaded.php';
 
 $lib = new RDJReloaded();
-$lib->scanList();
-$lib->aggiornaPodcast();
+$lib->aggiornaPodcast(trim($argv[1]), true);
