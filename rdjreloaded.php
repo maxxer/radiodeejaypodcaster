@@ -213,7 +213,7 @@ class RDJReloaded {
         $root->setAttribute('version', '2.0');
 
         $chan = $root->appendChild($xml->createElement('channel'));
-        $chan->appendChild($xml->createElement('title', $programma['nome']));
+        $chan->appendChild($xml->createElement('title', $programma['nome']." NON AGGIORNATO"));
         $chan->appendChild($xml->createElement('link', $this->baseUrlArchivio.$programma['slug']));
         $chan->appendChild($xml->createElement('generator', 'deejayreloadedpodcast.maxxer.it'));
         $chan->appendChild($xml->createElement('language', 'it'));
