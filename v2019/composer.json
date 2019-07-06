@@ -1,0 +1,5 @@
+{
+    "require": {
+        "zendframework/zend-feed": "^2.12"
+    }
+}

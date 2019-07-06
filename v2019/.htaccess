@@ -1,0 +1,5 @@
+Options +FollowSymLinks
+RewriteEngine On 
+
+RewriteRule ^podcast/([\-0-9a-z]+).xml$ /podcast.php?prog=$1 [L,NC]
+RewriteRule ^rss/([\-0-9a-z]+).xml$ /rss.php?prog=$1 [L,NC]

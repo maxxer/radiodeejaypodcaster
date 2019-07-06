@@ -110,6 +110,10 @@ Created by pixpalette.com - online design magazine -->
                                                     <a class="btn btn-default btn-number" href="podcast/<?=$p['slug']?>.xml" title="Feed podcast <?=$p['nome']?>" target="_blank">
                                                         <span class="glyphicon glyphicon-headphones"></span>
                                                     </a>
+                                                    &nbsp;
+                                                    <a class="btn btn-default btn-number" href="rss/<?=$p['slug']?>.xml" title="Feed RSS <?=$p['nome']?>" target="_blank">
+                                                        <span class="glyphicon glyphicon-music"></span>
+                                                    </a>
                                                   </span>
                                                 </div>
                                             </div>

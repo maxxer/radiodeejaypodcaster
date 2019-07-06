@@ -9,6 +9,9 @@ html, body {
     font-weight: 400;
 }
 
+.btn.btn-number {
+    padding: 10px 20px;
+}
 /* common style's */
 a {
   color: #7447ae;

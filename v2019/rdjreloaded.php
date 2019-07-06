@@ -20,7 +20,10 @@
 */
 
 require_once("simple_html_dom.php");
+require_once("vendor/autoload.php");
 date_default_timezone_set("Europe/Rome");
+
+use Zend\Feed\Writer\Feed;
 
 class RDJReloaded {
     private $baseUrl = "https://www.deejay.it/programmi/";
@@ -254,7 +257,71 @@ class RDJReloaded {
 
         $xml->formatOutput = true;
         $outXml = $xml->saveXML();
-        // Cache dell'XML per un'oretta
+        // Cache dell'XML per mezz'ora
+        $this->cache_add($cache_key, $outXml, 1800);
+        print $outXml;
+    }
+
+    /**
+     * Genera il feed RSS di un programma
+     * @param string $prog SLUG programma
+     */
+    public function generaRssProgramma($prog)
+    {
+        $cache_key = self::CACHE_PREFIX."-rss-".$prog;
+        $cached = $this->cache_get($cache_key);
+        if ($cached !== FALSE) {
+            print $cached;
+            return;
+        }
+
+        $db = $this->getDbConnection();
+        $programma = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$prog'")->fetch();
+        if (empty($programma))
+            return;
+
+        $feed = new Feed();
+        $feed->setTitle($programma['nome'].' by deejayreloadedpodcaster.maxxer.it');
+        $feed->setLink($this->baseUrl.$programma['slug']."/puntate/");
+        $feed->setFeedLink('https://deejayreloadedpodcaster.maxxer.it/v2019/rss/'.$prog.'.xml', 'rss');
+        $feed->setDescription('Puntate intere ON DEMAND dei programmi di Radio Deejay');
+        $feed->addAuthor([
+            'name'  => 'Lorenzo ~maxxer~ Milesi',
+            'email' => 'lorenzo@mile.si',
+            'uri'   => 'https://lorenzo.mile.si',
+        ]);
+        $feed->setLanguage("it");
+        $feed->setGenerator([
+            'name' => "Deejay Reloaded Podcaster",
+            'version' => "v2019.06",
+            'uri' => "https://deejayreloadedpodcaster.maxxer.it/v2019/",
+        ]);
+        $feed->setCopyright("Gruppo GEDI - Radio Deejay");
+        $feed->setImage([
+            'uri' => $programma['url_immagine'],
+            'title' => $programma['nome'],
+            'link' => $programma['url_immagine'],
+        ]);
+
+        // Query elenco episodi
+        $q_episodi = "SELECT * FROM `episodio` WHERE `id_programma` = '{$programma['id']}' ORDER BY `data_inserimento` DESC ";
+        foreach ($db->query($q_episodi)->fetchAll() as $episodio) {
+            $item = $feed->createEntry();
+            $item->setTitle($episodio['titolo']);
+            $item->setLink($episodio['href']);
+            $item->addAuthor(['name' => $programma['nome']]);
+            $item->setDateCreated(DateTime::createFromFormat('U', $episodio['data_inserimento']));
+            $item->setDateModified(DateTime::createFromFormat('U', $episodio['data_inserimento']));
+            $item->setContent($episodio['url_file']);
+            $feed->addEntry($item);
+        
+            // And memoize the date modified, if it's more recent:
+            $latest = $episodio['data_inserimento'];
+        }        
+        $feed->setDateModified(DateTime::createFromFormat('U', $latest));
+
+        $outXml = $feed->export('rss');
+        // Cache dell'XML per mezz'ora
         $this->cache_add($cache_key, $outXml, 1800);
         print $outXml;
     }
