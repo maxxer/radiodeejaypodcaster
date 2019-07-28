@@ -4,7 +4,7 @@ Created by pixpalette.com - online design magazine */
 @charset "utf-8";
 /* CSS Document */
 html, body {
-	font-family: 'Source Sans Pro', sans-serif;
+	font-family: 'SarabunRegular', sans-serif;
     font-size: 14px;
     font-weight: 400;
 }
@@ -124,7 +124,7 @@ label {
 }
 
 .logo h1 {
-    font-family: 'Nixie One', sans-serif;
+    font-family: 'AlegreyaSansRegular', sans-serif;
     position: absolute;
     color: #ffffff;
     font-size: 28px;
@@ -136,7 +136,7 @@ label {
 
 .event-banner-wrapper h2 {
     position: absolute;
-	font-family: 'Nixie One', sans-serif;
+	font-family: 'AlegreyaSansRegular', sans-serif;
 	font-size: 4vw;
     font-weight: 900;
 	line-height: 4.5vw;
@@ -153,7 +153,7 @@ label {
 
 .event-banner-wrapper p {
     position: absolute;
-    font-family: 'Nixie One', sans-serif;
+    font-family: 'AlegreyaSansRegular', sans-serif;
     font-size: 16px;
     font-weight: 900;
     color: #fff;
