@@ -176,10 +176,22 @@ class RDJReloaded
             . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
             . "VALUES ('$id_programma', :titolo, :file, '$url', :pubdate)");
         $doc = file_get_html($url);
-        $iframe = $doc->find("iframe", 0)->src;
-        $iframe_query = parse_url($iframe, PHP_URL_QUERY);
-        // Dei parametri del link iframe estraggo "file"
-        parse_str($iframe_query, $iframe_params);
+        $episode_url = null;
+        foreach ($doc->find("script") as $s) {
+            if (strpos($s->innertext, 'var episode') !== false) {
+                // First pass: remove script stuff
+                $a = preg_replace('/^var\ ep.*\[(\{.*}).*/', '${1}', $s->innertext);
+                // Second pass: remove trailing comma, make a valid JSON
+                $b = preg_replace("/,}/", '}', $a);
+                // Convert in JSON and extract `audio_url`
+                $script_json = json_decode($b);
+                $episode_url = $script_json->audio_url;
+            }
+        }
+        if ($episode_url == null) {
+            self::log("Errore: impossibile trovare URL mp3\n");
+            return;
+        }
         $titolo = $doc->find("h1.title a", 0)->plaintext;
         // Data inserimento da og:published
         $dt = DateTime::createFromFormat("Y-m-d\TH:i:s", $doc->find('meta[property="article:published_time"]', 0)->content);
@@ -188,7 +200,7 @@ class RDJReloaded
 
         // A questo punto ho i dati per l'inserimento della puntata
         $qAddPodcast->execute([
-            ':file' => $iframe_params['file'],
+            ':file' => $episode_url,
             ':pubdate' => $dt->getTimestamp(),
             ':titolo' => $titolo,
         ]);
