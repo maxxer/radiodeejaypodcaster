@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Radio Deejay RELOADED podcaster
  * @author Lorenzo Milesi <lorenzo@mile.si>
@@ -17,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 require_once("simple_html_dom.php");
 require_once("vendor/autoload.php");
@@ -25,7 +26,8 @@ date_default_timezone_set("Europe/Rome");
 
 use Zend\Feed\Writer\Feed;
 
-class RDJReloaded {
+class RDJReloaded
+{
     private $baseUrl = "https://www.deejay.it/programmi/";
 
     const CACHE_PREFIX = "201906-rdjreloaded";
@@ -41,7 +43,7 @@ class RDJReloaded {
      * @param string $url Path della prima pagina
      * @return null
      */
-    public function scanList ($url = NULL)
+    public function scanList($url = NULL)
     {
         if (is_null($url)) {
             self::log("INIZIO SCANSIONE ELENCO PROGRAMMI\n");
@@ -55,7 +57,7 @@ class RDJReloaded {
         $updProgr = $db->prepare("UPDATE `programma` SET `nome` = :nome, `url_immagine` = :urlImg, `url_thumb` = :urlThumb "
             . "WHERE `slug` = :slug");
         // Per ogni li della pagina apro il link e prelevo i dati del programma
-        foreach ($reloaded_home->find('section.program-list',0)->find("article") as $programma) {
+        foreach ($reloaded_home->find('section.program-list', 0)->find("article") as $programma) {
             // Prendo il link dell'immagine
             $link_programma = $programma->find("figure a", 0);
             if (is_null($link_programma)) {
@@ -100,7 +102,7 @@ class RDJReloaded {
         if (!is_null($next)) {
             return $this->scanList($next->href);
         }
-        */
+         */
         self::log("FINE SCANSIONE ELENCO PROGRAMMI\n");
         return;
     }
@@ -110,14 +112,15 @@ class RDJReloaded {
      * @param string $programma SLUG del programma, % per tutti.
      * @param boolean $noStop Se TRUE non si ferma quando incontra il primo episodio già presente. Predefinito FALSE
      */
-    public function aggiornaPodcast ($programma = '%', $noStop = FALSE) {
+    public function aggiornaPodcast($programma = '%', $noStop = FALSE)
+    {
         self::log("INIZIO AGGIORNAMENTO PROGRAMMA\n");
         $db = $this->getDbConnection();
         $qrPodcast = $db->query("SELECT * FROM `programma` WHERE `slug` LIKE '$programma'")->fetchAll();
 
         foreach ($qrPodcast as $riga) {
             self::log("Elaborazione programma '{$riga['slug']}' \n");
-            $urlPuntate = $this->baseUrl.$riga['slug']."/puntate/";
+            $urlPuntate = $this->baseUrl . $riga['slug'] . "/puntate/";
             $this->leggiPaginaProgramma($urlPuntate, $riga['id'], $noStop);
         }
         self::log("FINE AGGIORNAMENTO PROGRAMMA\n");
@@ -135,7 +138,7 @@ class RDJReloaded {
         self::log("Apertura pagina puntate '$url' \n");
         $pagArchivio = file_get_html($url);
 
-        $elencoEpisodi = $pagArchivio->find('section.puntate-list ul',0);
+        $elencoEpisodi = $pagArchivio->find('section.puntate-list ul', 0);
         if (empty($elencoEpisodi)) {
             self::log("ATTENZIONE: nessun link trovato!\n");
             return;
@@ -165,27 +168,28 @@ class RDJReloaded {
      * @param integer $id_programma id del programma nel db
      * @param string $url URL dell'episodio
      */
-    private function leggiProgramma ($id_programma, $url) {
+    private function leggiProgramma($id_programma, $url)
+    {
         self::log("Lettura url '$url' per programma $id_programma \n");
         $db = $this->getDbConnection();
         $qAddPodcast = $db->prepare("INSERT OR IGNORE INTO `episodio` "
-                . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
-                . "VALUES ('$id_programma', :titolo, :file, '$url', :pubdate)");
+            . "(`id_programma`, `titolo`, `url_file`, `href`, `data_inserimento`) "
+            . "VALUES ('$id_programma', :titolo, :file, '$url', :pubdate)");
         $doc = file_get_html($url);
-        $iframe = $doc->find("iframe",0)->src;
+        $iframe = $doc->find("iframe", 0)->src;
         $iframe_query = parse_url($iframe, PHP_URL_QUERY);
         // Dei parametri del link iframe estraggo "file"
         parse_str($iframe_query, $iframe_params);
         $titolo = $doc->find("h1.title a", 0)->plaintext;
         // Data inserimento da og:published
-        $dt = DateTime::createFromFormat("Y-m-d\TH:i:s", $doc->find('meta[property="article:published_time"]',0)->content);
+        $dt = DateTime::createFromFormat("Y-m-d\TH:i:s", $doc->find('meta[property="article:published_time"]', 0)->content);
         if ($dt === FALSE) // Se la data non è valida
             $dt = new DateTime();
 
         // A questo punto ho i dati per l'inserimento della puntata
         $qAddPodcast->execute([
-            ':file' => $iframe_params['file'], 
-            ':pubdate' => $dt->getTimestamp(), 
+            ':file' => $iframe_params['file'],
+            ':pubdate' => $dt->getTimestamp(),
             ':titolo' => $titolo,
         ]);
         unset($doc);
@@ -195,8 +199,9 @@ class RDJReloaded {
      * Genera l'XML del podcast e lo emette su stdout
      * @param string $prog SLUG programma
      */
-    public function generaXmlProgramma($prog) {
-        $cache_key = self::CACHE_PREFIX."-xml-".$prog;
+    public function generaXmlProgramma($prog)
+    {
+        $cache_key = self::CACHE_PREFIX . "-xml-" . $prog;
         $cached = $this->cache_get($cache_key);
         if ($cached !== FALSE) {
             print $cached;
@@ -210,7 +215,7 @@ class RDJReloaded {
 
         // Contatore visite
         $updCnt = $db->exec("UPDATE `programma_visite` SET `visite` = `visite` + 1  "
-                . "WHERE `id_programma` = '{$programma['id']}' ");
+            . "WHERE `id_programma` = '{$programma['id']}' ");
         if ($updCnt == 0) {
             $db->exec("INSERT INTO `programma_visite` (`id_programma`, `visite`) "
                 . "VALUES ('{$programma['id']}', 1) ");
@@ -225,7 +230,7 @@ class RDJReloaded {
 
         $chan = $root->appendChild($xml->createElement('channel'));
         $chan->appendChild($xml->createElement('title', $programma['nome']));
-        $chan->appendChild($xml->createElement('link', $this->baseUrl.$programma['slug']."/puntate/"));
+        $chan->appendChild($xml->createElement('link', $this->baseUrl . $programma['slug'] . "/puntate/"));
         $chan->appendChild($xml->createElement('generator', 'deejayreloadedpodcast.maxxer.it'));
         $chan->appendChild($xml->createElement('language', 'it'));
         $chan_img = $chan->appendChild($xml->createElement('itunes:image'));
@@ -245,14 +250,14 @@ class RDJReloaded {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $enclosure = $item->appendChild($xml->createElement('enclosure'));
             $enclosure->setAttribute('url', $episodio['url_file']);
-//            $enclosure->setAttribute('length', filesize($episode['audio_file']));
-//            $enclosure->setAttribute('type', finfo_file($finfo, $episode['audio_file']));
+            //            $enclosure->setAttribute('length', filesize($episode['audio_file']));
+            //            $enclosure->setAttribute('type', finfo_file($finfo, $episode['audio_file']));
 
             $item->appendChild($xml->createElement('pubDate', date('D, d M Y H:i:s O', $episodio['data_inserimento'])));
 
-        //    $getID3 = new getID3();
-        //    $fileinfo = $getID3->analyze($episode['audio_file']);
-        //    $item->appendChild($xml->createElement('itunes:duration', $fileinfo['playtime_string']));
+            //    $getID3 = new getID3();
+            //    $fileinfo = $getID3->analyze($episode['audio_file']);
+            //    $item->appendChild($xml->createElement('itunes:duration', $fileinfo['playtime_string']));
         }
 
         $xml->formatOutput = true;
@@ -268,7 +273,7 @@ class RDJReloaded {
      */
     public function generaRssProgramma($prog)
     {
-        $cache_key = self::CACHE_PREFIX."-rss-".$prog;
+        $cache_key = self::CACHE_PREFIX . "-rss-" . $prog;
         $cached = $this->cache_get($cache_key);
         if ($cached !== FALSE) {
             print $cached;
@@ -281,9 +286,9 @@ class RDJReloaded {
             return;
 
         $feed = new Feed();
-        $feed->setTitle($programma['nome'].' by deejayreloadedpodcaster.maxxer.it');
-        $feed->setLink($this->baseUrl.$programma['slug']."/puntate/");
-        $feed->setFeedLink('https://deejayreloadedpodcaster.maxxer.it/v2019/rss/'.$prog.'.xml', 'rss');
+        $feed->setTitle($programma['nome'] . ' by deejayreloadedpodcaster.maxxer.it');
+        $feed->setLink($this->baseUrl . $programma['slug'] . "/puntate/");
+        $feed->setFeedLink('https://deejayreloadedpodcaster.maxxer.it/v2019/rss/' . $prog . '.xml', 'rss');
         $feed->setDescription('Puntate intere ON DEMAND dei programmi di Radio Deejay');
         $feed->addAuthor([
             'name'  => 'Lorenzo ~maxxer~ Milesi',
@@ -314,10 +319,10 @@ class RDJReloaded {
             $item->setDateModified(DateTime::createFromFormat('U', $episodio['data_inserimento']));
             $item->setContent($episodio['url_file']);
             $feed->addEntry($item);
-        
+
             // And memoize the date modified, if it's more recent:
             $latest = $episodio['data_inserimento'];
-        }        
+        }
         $feed->setDateModified(DateTime::createFromFormat('U', $latest));
 
         $outXml = $feed->export('rss');
@@ -330,8 +335,9 @@ class RDJReloaded {
      * Torna l'elenco dei programmi, da usare nel frontend
      * @return array
      */
-    public function generaElencoProgrammi () {
-        $cache_key = self::CACHE_PREFIX."-elencoprogrammi";
+    public function generaElencoProgrammi()
+    {
+        $cache_key = self::CACHE_PREFIX . "-elencoprogrammi";
         $cached = $this->cache_get($cache_key);
         if ($cached !== FALSE) {
             return $cached;
@@ -339,12 +345,12 @@ class RDJReloaded {
 
         $db = $this->getDbConnection();
         $q_programmi = "SELECT *, "
-                . "MAX(`data_inserimento`) AS ultima_puntata, "
-                . "'{$this->baseUrl}' || `slug` || '/puntate/' AS url_archivio "
-                . "FROM `programma` "
-                . "JOIN `episodio` ON `id_programma` = `programma`.`id` "
-                . "GROUP BY `programma`.`slug` "
-                . "ORDER BY `programma`.`slug` ";
+            . "MAX(`data_inserimento`) AS ultima_puntata, "
+            . "'{$this->baseUrl}' || `slug` || '/puntate/' AS url_archivio "
+            . "FROM `programma` "
+            . "JOIN `episodio` ON `id_programma` = `programma`.`id` "
+            . "GROUP BY `programma`.`slug` "
+            . "ORDER BY `programma`.`slug` ";
         $programmi = $db->query($q_programmi)->fetchAll();
         if (empty($programmi))
             return;
@@ -357,12 +363,13 @@ class RDJReloaded {
      * Genera l'oggetto della connessione SQLite
      * @return PDO
      */
-    public function getDbConnection () {
+    public function getDbConnection()
+    {
         if (empty($this->conn)) {
             try {
-                $this->conn = new PDO("sqlite:".__DIR__."/radiodeejayreloaded.sqldb","","",array(PDO::ATTR_PERSISTENT => true));
+                $this->conn = new PDO("sqlite:" . __DIR__ . "/radiodeejayreloaded.sqldb", "", "", array(PDO::ATTR_PERSISTENT => true));
             } catch (PDOException $e) {
-                die ("Errore apertura DB: ".$e->getMessage());
+                die("Errore apertura DB: " . $e->getMessage());
             }
         }
         return $this->conn;
@@ -398,6 +405,6 @@ class RDJReloaded {
      */
     private static function log($message)
     {
-        echo date("Y-m-d H:i:s")." ".$message;
+        echo date("Y-m-d H:i:s") . " " . $message;
     }
 }
